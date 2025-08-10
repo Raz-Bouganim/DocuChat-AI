@@ -1,24 +1,38 @@
-// Import packages
+// backend/index.js - Add the upload route back
 const express = require('express');
 const cors = require('cors');
-require('dotenv').config();
+require('dotenv').config({ path: '../.env' });
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());               // Allow requests from React app
-app.use(express.json());       // Parse JSON data
+app.use(cors({
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  credentials: true
+}));
 
-// Define routes (like Flask routes)
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use('/api/upload', require('./api/upload'));
+app.use('/api/process', require('./api/process'));
+
+
+// Health check
 app.get('/api/health', (req, res) => {
-    res.json({ 
-        message: 'Backend is working!', 
-        timestamp: new Date().toISOString() 
-    });
+  res.json({ 
+    message: 'Backend is working!', 
+    timestamp: new Date().toISOString()
+  });
 });
 
-// Start server
+// Error handling
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
 app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`Server running on http://localhost:${PORT}`);
 });
