@@ -159,3 +159,9 @@ docuchat-ai/
 - **Similarity Threshold**: 0.15 (adjustable for search sensitivity)
 - **Max Results**: 8 chunks per search
 - **Retry Threshold**: 0.05 (fallback for difficult queries)
+
+### From App Image:
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/488b6daa-61f9-4483-8309-bfd8a793a661" alt="Project Screenshot" width="80%">
+</p>
+
