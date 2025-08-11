@@ -16,6 +16,8 @@ const s3Client = new S3Client({
 // Helper function to get file from S3
 async function getFileFromS3(s3Key) {
   try {
+    console.log(`📥 Downloading file from S3: ${s3Key}`);
+    
     const command = new GetObjectCommand({
       Bucket: process.env.AWS_S3_BUCKET,
       Key: s3Key,
@@ -29,10 +31,13 @@ async function getFileFromS3(s3Key) {
       chunks.push(chunk);
     }
     
-    return Buffer.concat(chunks);
+    const buffer = Buffer.concat(chunks);
+    console.log(`✅ Downloaded ${buffer.length} bytes from S3`);
+    
+    return buffer;
   } catch (error) {
-    console.error('Error getting file from S3:', error);
-    throw new Error('Failed to retrieve file from S3');
+    console.error('❌ Error getting file from S3:', error);
+    throw new Error(`Failed to retrieve file from S3: ${error.message}`);
   }
 }
 
@@ -46,7 +51,10 @@ async function extractTextFromPDF(buffer) {
     const cleanText = data.text
       .replace(/\r\n/g, '\n')  // Normalize line endings
       .replace(/\n{3,}/g, '\n\n')  // Remove excessive line breaks
+      .replace(/\s{2,}/g, ' ')  // Replace multiple spaces with single space
       .trim();
+    
+    console.log(`✅ PDF extraction completed: ${data.numpages} pages, ${cleanText.length} characters`);
     
     return {
       text: cleanText,
@@ -60,11 +68,11 @@ async function extractTextFromPDF(buffer) {
         creationDate: data.info?.CreationDate || null,
         pages: data.numpages
       },
-      wordCount: cleanText.split(/\s+/).length,
+      wordCount: cleanText.split(/\s+/).filter(word => word.length > 0).length,
       characterCount: cleanText.length
     };
   } catch (error) {
-    console.error('PDF extraction error:', error);
+    console.error('❌ PDF extraction error:', error);
     throw new Error(`Failed to extract text from PDF: ${error.message}`);
   }
 }
@@ -80,11 +88,14 @@ async function extractTextFromDOCX(buffer) {
       .replace(/\r\n/g, '\n')  // Normalize line endings
       .replace(/\n{3,}/g, '\n\n')  // Remove excessive line breaks
       .replace(/\t/g, ' ')  // Replace tabs with spaces
+      .replace(/\s{2,}/g, ' ')  // Replace multiple spaces with single space
       .trim();
     
     // Estimate pages (rough calculation: ~250 words per page)
-    const wordCount = cleanText.split(/\s+/).length;
-    const estimatedPages = Math.ceil(wordCount / 250);
+    const wordCount = cleanText.split(/\s+/).filter(word => word.length > 0).length;
+    const estimatedPages = Math.max(1, Math.ceil(wordCount / 250));
+    
+    console.log(`✅ DOCX extraction completed: ~${estimatedPages} pages, ${cleanText.length} characters`);
     
     return {
       text: cleanText,
@@ -100,7 +111,7 @@ async function extractTextFromDOCX(buffer) {
       characterCount: cleanText.length
     };
   } catch (error) {
-    console.error('DOCX extraction error:', error);
+    console.error('❌ DOCX extraction error:', error);
     throw new Error(`Failed to extract text from DOCX: ${error.message}`);
   }
 }
@@ -115,10 +126,13 @@ async function extractTextFromTXT(buffer) {
     const cleanText = text
       .replace(/\r\n/g, '\n')  // Normalize line endings
       .replace(/\n{3,}/g, '\n\n')  // Remove excessive line breaks
+      .replace(/\s{2,}/g, ' ')  // Replace multiple spaces with single space
       .trim();
     
-    const wordCount = cleanText.split(/\s+/).length;
-    const estimatedPages = Math.ceil(wordCount / 250);
+    const wordCount = cleanText.split(/\s+/).filter(word => word.length > 0).length;
+    const estimatedPages = Math.max(1, Math.ceil(wordCount / 250));
+    
+    console.log(`✅ TXT extraction completed: ~${estimatedPages} pages, ${cleanText.length} characters`);
     
     return {
       text: cleanText,
@@ -134,7 +148,7 @@ async function extractTextFromTXT(buffer) {
       characterCount: cleanText.length
     };
   } catch (error) {
-    console.error('TXT extraction error:', error);
+    console.error('❌ TXT extraction error:', error);
     throw new Error(`Failed to extract text from TXT: ${error.message}`);
   }
 }
@@ -148,7 +162,6 @@ async function extractTextFromDocument(s3Key, fileType, fileName) {
     
     // Get file buffer from S3
     const buffer = await getFileFromS3(s3Key);
-    console.log(`📥 Downloaded ${buffer.length} bytes from S3`);
     
     let result;
     
@@ -164,7 +177,11 @@ async function extractTextFromDocument(s3Key, fileType, fileName) {
     }
     
     console.log(`✅ Text extraction completed for ${fileName}`);
-    console.log(`📊 Stats: ${result.wordCount} words, ${result.pages} pages`);
+    console.log(`📊 Stats: ${result.wordCount} words, ${result.pages} pages, ${result.characterCount} characters`);
+    
+    // Add some preview text for debugging
+    const previewText = result.text.substring(0, 200) + (result.text.length > 200 ? '...' : '');
+    console.log(`📖 Preview: "${previewText}"`);
     
     return {
       ...result,
@@ -184,5 +201,6 @@ module.exports = {
   extractTextFromDocument,
   extractTextFromPDF,
   extractTextFromDOCX,
-  extractTextFromTXT
+  extractTextFromTXT,
+  getFileFromS3
 };
